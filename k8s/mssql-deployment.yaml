@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mssql-deployment
+  labels:
+    app.kubernetes.io/part-of: webshop
+spec:
+  replicas: 1
+  # The volume can only be mounted by one pod: stop the old pod before starting a new one.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mssql
+  template:
+    metadata:
+      labels:
+        app: mssql
+        app.kubernetes.io/part-of: webshop
+    spec:
+      securityContext:
+        fsGroup: 10001   # the mssql user in the image; lets it write to the volume
+      containers:
+      - name: mssql
+        # Pinned by digest so every deploy runs exactly the same SQL Server build.
+        image: mcr.microsoft.com/mssql/server:2022-latest@sha256:0ec7739e1c5ec2f57861facbe1f2b74f1d3e147c7c97edf91eeea920c5944d9c
+        env:
+        - name: ACCEPT_EULA
+          value: "Y"
+        - name: MSSQL_SA_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: sa-password}
+        - name: MSSQL_MEMORY_LIMIT_MB
+          value: "1536"
+        ports:
+        - containerPort: 1433
+        readinessProbe:
+          tcpSocket: {port: 1433}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket: {port: 1433}
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          failureThreshold: 6
+        resources:
+          requests: {cpu: 250m, memory: 1Gi}
+          limits: {cpu: "2", memory: 2560Mi}
+        volumeMounts:
+        - name: mssql-data
+          mountPath: /var/opt/mssql
+      volumes:
+      - name: mssql-data
+        persistentVolumeClaim:
+          claimName: mssql-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mssql-service
+  labels:
+    app.kubernetes.io/part-of: webshop
+spec:
+  selector:
+    app: mssql
+  ports:
+  - port: 1433
+    targetPort: 1433

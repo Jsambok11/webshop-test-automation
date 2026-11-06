@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Test output
+reports/
+
+# Secrets: never commit real values (deploy.py generates them in the cluster)
+.env
+*.secret.yaml
+secrets.yaml
+
+# Office lock files (created while a document is open in Word or Excel)
+~$*

@@ -1,0 +1,16 @@
+# Used only to build the images (deploy.py runs `docker compose build`).
+# deploy.py sets IMAGE_TAG to a hash of the source code and uses the same tag
+# when applying the k8s/ manifests.
+services:
+  user-service:
+    image: examination-user-service:${IMAGE_TAG:-1.1.0}
+    build: {context: ./services, dockerfile: user-service/Dockerfile}
+  product-service:
+    image: examination-product-service:${IMAGE_TAG:-1.1.0}
+    build: {context: ./services, dockerfile: product-service/Dockerfile}
+  order-service:
+    image: examination-order-service:${IMAGE_TAG:-1.1.0}
+    build: {context: ./services, dockerfile: order-service/Dockerfile}
+  frontend-service:
+    image: examination-frontend-service:${IMAGE_TAG:-1.1.0}
+    build: {context: ./services, dockerfile: frontend-service/Dockerfile}

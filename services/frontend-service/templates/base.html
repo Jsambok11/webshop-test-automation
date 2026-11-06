@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Product Store{% endblock %}</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .nav { margin-bottom: 20px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+        .nav a, .nav button { margin-right: 10px; }
+        .nav button { background: none; border: none; color: blue; text-decoration: underline; cursor: pointer; }
+        .nav button:hover { color: darkblue; }
+        .content { margin-top: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="nav">
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('cart') }}">Cart ({{ session.cart|length if session.cart else 0 }})</a>
+        {% if session.user_id %}
+            <span>Welcome, {{ session.user_email }}</span>
+            <form action="{{ url_for('logout') }}" method="POST" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">Logout</button>
+            </form>
+            <form action="{{ url_for('delete_account') }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">Delete Account</button>
+            </form>
+        {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('register') }}">Register</a>
+        {% endif %}
+    </div>
+
+    <div class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

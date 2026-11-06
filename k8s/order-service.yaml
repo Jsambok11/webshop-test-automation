@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app.kubernetes.io/part-of: webshop
+    app.kubernetes.io/component: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        app.kubernetes.io/part-of: webshop
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: order-service
+        # Versioned tag instead of :latest. deploy.py replaces it with the exact build
+        # tag (version + source hash), so the cluster always runs the code just built.
+        image: examination-order-service:1.1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: INTERNAL_API_TOKEN
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: internal-api-token}
+        - name: DB_SERVER
+          value: "mssql-service"
+        - name: DB_NAME
+          value: "OrdersDB"
+        - name: DB_USER
+          value: "order_svc"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: order-db-password}
+        - name: USER_SERVICE_URL
+          value: "http://user-service:80"
+        - name: PRODUCT_SERVICE_URL
+          value: "http://product-service:80"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: ["ALL"]}
+        # Readiness: may this pod receive traffic? (backends: includes the database)
+        readinessProbe:
+          httpGet: {path: /health, port: 5000}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # Liveness: is the process stuck? Does NOT check the database, so a
+        # database outage does not make Kubernetes restart every service.
+        livenessProbe:
+          httpGet: {path: /live, port: 5000}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests: {cpu: 50m, memory: 96Mi}
+          limits: {cpu: 500m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  labels:
+    app.kubernetes.io/part-of: webshop
+spec:
+  type: ClusterIP
+  selector:
+    app: order-service
+  ports:
+  - port: 80
+    targetPort: 5000

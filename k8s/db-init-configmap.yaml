@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-script
+data:
+  # Idempotent: safe to run on every deploy. It only creates what is missing
+  # and never drops data (the database lives on a persistent volume).
+  # Run with: sqlcmd -I (QUOTED_IDENTIFIER ON, needed for the filtered index)
+  #           -v USER_DB_PASSWORD=... PRODUCT_DB_PASSWORD=... ORDER_DB_PASSWORD=...
+  init.sql: |
+    USE master;
+    GO
+    IF DB_ID('UsersDB') IS NULL CREATE DATABASE UsersDB;
+    IF DB_ID('ProductsDB') IS NULL CREATE DATABASE ProductsDB;
+    IF DB_ID('OrdersDB') IS NULL CREATE DATABASE OrdersDB;
+    GO
+
+    -- ============================================
+    -- One SQL login per service (least privilege).
+    -- Passwords come from the Kubernetes Secret; ALTER keeps them in sync if
+    -- the Secret is rotated.
+    -- ============================================
+    IF SUSER_ID('user_svc') IS NULL
+        CREATE LOGIN user_svc WITH PASSWORD = N'$(USER_DB_PASSWORD)', DEFAULT_DATABASE = UsersDB;
+    ELSE
+        ALTER LOGIN user_svc WITH PASSWORD = N'$(USER_DB_PASSWORD)';
+    IF SUSER_ID('product_svc') IS NULL
+        CREATE LOGIN product_svc WITH PASSWORD = N'$(PRODUCT_DB_PASSWORD)', DEFAULT_DATABASE = ProductsDB;
+    ELSE
+        ALTER LOGIN product_svc WITH PASSWORD = N'$(PRODUCT_DB_PASSWORD)';
+    IF SUSER_ID('order_svc') IS NULL
+        CREATE LOGIN order_svc WITH PASSWORD = N'$(ORDER_DB_PASSWORD)', DEFAULT_DATABASE = OrdersDB;
+    ELSE
+        ALTER LOGIN order_svc WITH PASSWORD = N'$(ORDER_DB_PASSWORD)';
+    GO
+
+    -- ============================================
+    -- UsersDB
+    -- ============================================
+    USE UsersDB;
+    GO
+    IF OBJECT_ID('dbo.Users') IS NULL
+    BEGIN
+        CREATE TABLE dbo.Users (
+            Id INT IDENTITY PRIMARY KEY,
+            Firstname NVARCHAR(50) NOT NULL,
+            Surname NVARCHAR(50) NOT NULL,
+            Email NVARCHAR(50) NOT NULL UNIQUE CHECK (Email LIKE '%_@_%'),
+            -- Only a salted hash is stored, never the password itself.
+            PasswordHash NVARCHAR(255) NOT NULL
+        );
+        -- Seed users. Plain-text passwords for manual testing:
+        --   Alice: Pass12345   Brian: SecurePass9   Clara: MyPassword123
+        INSERT INTO dbo.Users (Firstname, Surname, Email, PasswordHash)
+        VALUES
+        (N'Alice', N'Anderson', N'alice.anderson@example.com', N'scrypt:32768:8:1$R1A302ypoIpoOU1j$798a71054c3beaad4f44aa25673f11e89010f387540a1c3c1c1c201d6c997d6f026640d2caa6319f781aad67ec5a5a9aebb686c82d846d4ae43b2d4c12599c79'),
+        (N'Brian', N'Bergström', N'brian.bergstrom@example.com', N'scrypt:32768:8:1$syDS9E47t3dhsfmi$06870938fe110e7ec50fd499afbe9663dcf1e7d7482c3be2391a56ae03b034447a29d9326f20f97e1e13dabed41c7f238376fda8991a70eb3fb703232839ffac'),
+        (N'Clara', N'Carlsson', N'clara.carlsson@example.com', N'scrypt:32768:8:1$h1FcrX2BoqOMizjO$a485be44741d63fe553b5ed4aab2eee4f08763840fe4fd890d65ea0276ea887393af1d975567f41ba6c3c0240e2d3c4fb0d3f4cc9d06b1b590d3b2dc794cf08d');
+    END
+    GO
+    IF USER_ID('user_svc') IS NULL CREATE USER user_svc FOR LOGIN user_svc;
+    GRANT SELECT, INSERT, DELETE ON dbo.Users TO user_svc;
+    GO
+
+    -- ============================================
+    -- ProductsDB
+    -- ============================================
+    USE ProductsDB;
+    GO
+    IF OBJECT_ID('dbo.Products') IS NULL
+    BEGIN
+        CREATE TABLE dbo.Products (
+            Id INT IDENTITY PRIMARY KEY,
+            Name NVARCHAR(50) NOT NULL,
+            Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
+            Stock INT NOT NULL DEFAULT 0 CHECK (Stock >= 0)
+        );
+        INSERT INTO dbo.Products (Name, Price, Stock)
+        VALUES
+        (N'Asus TUF 15', 9999.95, 15),
+        (N'Lenovo Yoga 3', 13000, 10),
+        (N'JBL 775 NC', 1200, 55),
+        (N'Powerbank 5000mah', 99.95, 500),
+        (N'Ear Plugs', 9.95, 550),
+        (N'Cat Ears headband', 149.50, 310);
+    END
+    GO
+    IF USER_ID('product_svc') IS NULL CREATE USER product_svc FOR LOGIN product_svc;
+    -- No INSERT/DELETE: the service only reads products and changes stock.
+    GRANT SELECT, UPDATE ON dbo.Products TO product_svc;
+    GO
+
+    -- ============================================
+    -- OrdersDB: one order (header) with one line per product.
+    -- ============================================
+    USE OrdersDB;
+    GO
+    IF OBJECT_ID('dbo.Orders') IS NULL
+    BEGIN
+        CREATE TABLE dbo.Orders (
+            Id INT IDENTITY PRIMARY KEY,
+            -- NULL once the user has deleted their account (order is anonymized).
+            UserId INT NULL,
+            CreatedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+            IdempotencyKey NVARCHAR(64) NULL
+        );
+        -- Same key can only create one order. Filtered so many NULLs are allowed.
+        CREATE UNIQUE INDEX UX_Orders_IdempotencyKey ON dbo.Orders (IdempotencyKey)
+            WHERE IdempotencyKey IS NOT NULL;
+        CREATE INDEX IX_Orders_UserId ON dbo.Orders (UserId);
+
+        CREATE TABLE dbo.OrderItems (
+            Id INT IDENTITY PRIMARY KEY,
+            OrderId INT NOT NULL REFERENCES dbo.Orders (Id) ON DELETE CASCADE,
+            ProductId INT NOT NULL,
+            -- Name and price are copied at purchase time, so later price
+            -- changes do not rewrite old orders.
+            ProductName NVARCHAR(50) NOT NULL,
+            UnitPrice DECIMAL(10,2) NOT NULL CHECK (UnitPrice >= 0),
+            Quantity INT NOT NULL CHECK (Quantity > 0)
+        );
+
+        INSERT INTO dbo.Orders (UserId) VALUES (1);
+        INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity)
+        VALUES (SCOPE_IDENTITY(), 2, N'Lenovo Yoga 3', 13000, 3);
+    END
+    GO
+    IF USER_ID('order_svc') IS NULL CREATE USER order_svc FOR LOGIN order_svc;
+    -- UPDATE is needed to anonymize orders; no DELETE.
+    GRANT SELECT, INSERT, UPDATE ON dbo.Orders TO order_svc;
+    GRANT SELECT, INSERT ON dbo.OrderItems TO order_svc;
+    GO
+
+    PRINT 'Database initialization complete.';
+    GO

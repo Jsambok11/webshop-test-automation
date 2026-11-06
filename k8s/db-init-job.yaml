@@ -1,0 +1,59 @@
+# Creates databases, tables, seed data and per-service logins. Idempotent.
+# deploy.py deletes the old Job before applying, because a finished Job cannot be re-run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init-job
+  labels:
+    app.kubernetes.io/part-of: webshop
+spec:
+  backoffLimit: 4
+  template:
+    metadata:
+      labels:
+        app: db-init
+        app.kubernetes.io/part-of: webshop
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: db-init
+        # Same image as the server: it ships sqlcmd (mssql-tools18), which
+        # replaces the deprecated mcr.microsoft.com/mssql-tools image.
+        image: mcr.microsoft.com/mssql/server:2022-latest@sha256:0ec7739e1c5ec2f57861facbe1f2b74f1d3e147c7c97edf91eeea920c5944d9c
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -euo pipefail
+          SQLCMD="/opt/mssql-tools18/bin/sqlcmd -S mssql-service -U sa -C -b"
+          # Wait until SQL Server accepts logins (instead of a fixed sleep).
+          for i in $(seq 1 60); do
+            if $SQLCMD -Q "SELECT 1" >/dev/null 2>&1; then break; fi
+            echo "Waiting for SQL Server ($i/60)..."; sleep 3
+          done
+          $SQLCMD -I -i /scripts/init.sql \
+            -v USER_DB_PASSWORD="$USER_DB_PASSWORD" PRODUCT_DB_PASSWORD="$PRODUCT_DB_PASSWORD" ORDER_DB_PASSWORD="$ORDER_DB_PASSWORD"
+        env:
+        # sqlcmd reads the sa password from SQLCMDPASSWORD, so it never appears
+        # on the command line or in the process list.
+        - name: SQLCMDPASSWORD
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: sa-password}
+        - name: USER_DB_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: user-db-password}
+        - name: PRODUCT_DB_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: product-db-password}
+        - name: ORDER_DB_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: order-db-password}
+        resources:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {cpu: 500m, memory: 256Mi}
+        volumeMounts:
+        - name: script
+          mountPath: /scripts
+      volumes:
+      - name: script
+        configMap:
+          name: db-init-script

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Product Store{% endblock %}
+{% block content %}
+    <h1>Product Store</h1>
+    <div class="product-grid">
+        {% for p in products %}
+        <a href="{{ url_for('product_detail', product_id=p.id) }}" class="product-card">
+            <div class="product-name">{{ p.name }}</div>
+            <div class="price">${{ p.price|money }}</div>
+            <div class="stock 
+                {% if p.stock == 0 %}stock-none
+                {% elif p.stock < 50 %}stock-low
+                {% else %}stock-ok{% endif %}">
+                Stock: {{ p.stock }}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+{% endblock %}

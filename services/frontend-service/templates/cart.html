@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Shopping Cart{% endblock %}
+{% block content %}
+    <h1>Shopping Cart</h1>
+    {% if items %}
+        {% for item in items %}
+        <div class="cart-item">
+            <strong>{{ item.name }}</strong><br>
+            Price: ${{ item.price|money }} × {{ item.quantity }} = ${{ item.subtotal|money }}
+            <form action="{{ url_for('remove_from_cart', product_id=item.id) }}" method="POST" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="remove">Remove</button>
+            </form>
+        </div>
+        {% endfor %}
+
+        <div class="total">Subtotal: ${{ total|money }}</div>
+        
+        <form action="{{ url_for('checkout') }}" method="POST" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="checkout_token" value="{{ checkout_token }}">
+            <div class="delivery-section">
+                <h3>Delivery Information</h3>
+                <div class="post-code">
+                    <label>Post Code:</label>
+                    <input type="text" name="post_code" placeholder="e.g., 12345" required>
+                </div>
+                <div class="delivery-option">
+                    <input type="radio" name="delivery_method" value="door" id="door" checked>
+                    <label for="door">Delivery to door – $5.00</label>
+                </div>
+                <div class="delivery-option">
+                    <input type="radio" name="delivery_method" value="pickup" id="pickup">
+                    <label for="pickup">Pickup at store – Free</label>
+                </div>
+            </div>
+            <button type="submit">Place Order</button>
+        </form>
+    {% else %}
+        <p>Your cart is empty.</p>
+        <a href="{{ url_for('index') }}">Continue Shopping</a>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-service
+  labels:
+    app.kubernetes.io/part-of: webshop
+    app.kubernetes.io/component: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-service
+  template:
+    metadata:
+      labels:
+        app: frontend-service
+        app.kubernetes.io/part-of: webshop
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: frontend-service
+        # Versioned tag instead of :latest. deploy.py replaces it with the exact build
+        # tag (version + source hash), so the cluster always runs the code just built.
+        image: examination-frontend-service:1.1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: INTERNAL_API_TOKEN
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: internal-api-token}
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef: {name: app-secrets, key: flask-secret-key}
+        - name: USER_SERVICE_URL
+          value: "http://user-service:80"
+        - name: PRODUCT_SERVICE_URL
+          value: "http://product-service:80"
+        - name: ORDER_SERVICE_URL
+          value: "http://order-service:80"
+        # Set to "true" once the site is served over HTTPS.
+        - name: SESSION_COOKIE_SECURE
+          value: "false"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: ["ALL"]}
+        # Readiness: may this pod receive traffic? (backends: includes the database)
+        readinessProbe:
+          httpGet: {path: /health, port: 5000}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # Liveness: is the process stuck? Does NOT check the database, so a
+        # database outage does not make Kubernetes restart every service.
+        livenessProbe:
+          httpGet: {path: /live, port: 5000}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests: {cpu: 50m, memory: 96Mi}
+          limits: {cpu: 500m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  labels:
+    app.kubernetes.io/part-of: webshop
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend-service
+  ports:
+  - port: 80
+    targetPort: 5000

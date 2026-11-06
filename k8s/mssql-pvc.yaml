@@ -1,0 +1,13 @@
+# Persistent storage for SQL Server: data survives pod restarts.
+# cleanup.py deletes it (fresh database next deploy); `cleanup.py --keep-data` keeps it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mssql-data
+  labels:
+    app.kubernetes.io/part-of: webshop
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi

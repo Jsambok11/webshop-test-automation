@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Order Receipt{% endblock %}
+{% block content %}
+    <div class="receipt">
+        <div class="header">
+            <h1>Thank You for Your Order!</h1>
+            <p>Order #: <span data-testid="order-id">{{ receipt.order.id }}</span></p>
+            <p>Date: {{ receipt.order.createdAt }}</p>
+        </div>
+
+        <div class="payment-success">
+            ✅ Payment of ${{ receipt.total|money }} via {{ receipt.payment.method }} was successful!
+            <br>
+            <small>Transaction ID: {{ receipt.payment.transaction_id }}</small>
+        </div>
+
+        <h2>Order Details</h2>
+        {% for item in receipt.order["items"] %}
+        <div class="order-item">
+            <strong>{{ item.productName }}</strong><br>
+            ${{ item.unitPrice|money }} × {{ item.quantity }} = ${{ item.subtotal|money }}
+        </div>
+        {% endfor %}
+
+        <div class="items-total">Items: ${{ receipt.items_total|money }}</div>
+        <div class="delivery">
+            {{ receipt.delivery_method }} (post code {{ receipt.post_code }}):
+            ${{ receipt.delivery_fee|money }}
+        </div>
+        <div class="total">
+            Total: $<span data-testid="order-total">{{ receipt.total|money }}</span>
+        </div>
+
+        <div class="email-notice">
+            📧 A copy of this receipt has been sent to {{ receipt.customer_email }}
+            <br>
+            <small>(This is a mock – no actual email was sent)</small>
+        </div>
+    </div>
+{% endblock %}

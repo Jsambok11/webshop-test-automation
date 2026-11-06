@@ -1,0 +1,5 @@
+Flask==3.0.3
+Werkzeug==3.0.6
+requests==2.32.3
+pyodbc==5.2.0
+gunicorn==23.0.0

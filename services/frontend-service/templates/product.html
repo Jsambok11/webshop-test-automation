@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} - Product Store{% endblock %}
+{% block content %}
+    <div class="product-detail">
+        <h1>{{ product.name }}</h1>
+        <p class="price">${{ product.price|money }}</p>
+        <p class="stock 
+            {% if product.stock == 0 %}stock-none
+            {% elif product.stock < 50 %}stock-low
+            {% else %}stock-ok{% endif %}">
+            Stock: {{ product.stock }}
+        </p>
+        <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Quantity:
+                <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" required>
+            </label>
+            <button type="submit">Add to Cart</button>
+        </form>
+    </div>
+{% endblock %}

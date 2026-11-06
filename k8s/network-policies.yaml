@@ -1,0 +1,86 @@
+# Only the traffic the architecture needs is allowed:
+#
+#   anyone ──> frontend ──> user-service, product-service, order-service
+#   order-service ──> user-service, product-service
+#   user-service  ──> order-service (anonymize orders on account deletion)
+#   user/product/order-service, db-init ──> mssql
+#
+# Everything else inside the namespace is denied. kubectl port-forward and
+# kubelet probes are not affected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  labels: {app.kubernetes.io/part-of: webshop}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend
+  labels: {app.kubernetes.io/part-of: webshop}
+spec:
+  podSelector: {matchLabels: {app: frontend-service}}
+  policyTypes: ["Ingress"]
+  ingress:
+  - ports: [{port: 5000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-user-service
+  labels: {app.kubernetes.io/part-of: webshop}
+spec:
+  podSelector: {matchLabels: {app: user-service}}
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector: {matchLabels: {app: frontend-service}}
+    - podSelector: {matchLabels: {app: order-service}}
+    ports: [{port: 5000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-product-service
+  labels: {app.kubernetes.io/part-of: webshop}
+spec:
+  podSelector: {matchLabels: {app: product-service}}
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector: {matchLabels: {app: frontend-service}}
+    - podSelector: {matchLabels: {app: order-service}}
+    ports: [{port: 5000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-order-service
+  labels: {app.kubernetes.io/part-of: webshop}
+spec:
+  podSelector: {matchLabels: {app: order-service}}
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector: {matchLabels: {app: frontend-service}}
+    - podSelector: {matchLabels: {app: user-service}}
+    ports: [{port: 5000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mssql
+  labels: {app.kubernetes.io/part-of: webshop}
+spec:
+  podSelector: {matchLabels: {app: mssql}}
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector: {matchLabels: {app: user-service}}
+    - podSelector: {matchLabels: {app: product-service}}
+    - podSelector: {matchLabels: {app: order-service}}
+    - podSelector: {matchLabels: {app: db-init}}
+    ports: [{port: 1433}]
