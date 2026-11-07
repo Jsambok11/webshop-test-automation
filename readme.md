@@ -126,7 +126,7 @@ playwright install chromium
 
 - `test-case-results.csv`: one row per test case ID with Pass / Fail / Blocked,
   ready to paste into the Test Results sheet of
-  [test-management.xlsx](docs/test-management.xlsx)
+  [test-management.xlsx](docs/v1.1/test-management.xlsx)
 - `junit.xml`: machine-readable results (when run through `run.py`)
 
 ---
@@ -140,7 +140,7 @@ playwright install chromium
 | E2E | Customer journeys in a real browser | pytest + Playwright | 21 |
 | Static | Review of code and configuration | by hand | 1 |
 
-- **Traceability.** [test-management.xlsx](docs/test-management.xlsx) holds 41
+- **Traceability.** [test-management.xlsx](docs/v1.1/test-management.xlsx) holds 41
   requirements, 103 test cases (one sheet per level), test results and a
   summary. Every automated test carries its test case ID, so results map
   straight back to requirements.
@@ -153,7 +153,7 @@ playwright install chromium
   resilience (database outage, restarts, redeploys).
 - **Latest result:** 208 of 208 automated tests passed, and the static review
   passed: all 103 test cases Pass, covering all 41 requirements.
-- **Test report.** [test-report.pdf](docs/test-report.pdf) closes the testing:
+- **Test report.** [test-report.pdf](docs/v1.1/test-report.pdf) closes the testing:
   scope, results, defects, deviations, remaining risks and a recommendation.
 
 Tests are written to be read. Each step is commented in Given / When / Then
@@ -215,10 +215,11 @@ flowchart LR
 │   ├── unit/                      unit tests (database and HTTP faked)
 │   ├── integration/               integration tests (need the deployed shop)
 │   └── e2e/                       Playwright browser tests (need the deployed shop)
-├── docs/
-│   ├── test-management.xlsx       requirements, test cases, results
-│   ├── test-report.pdf            test report (also as .docx)
-│   └── test-report.docx
+├── docs/                          test documents, one folder per release
+│   └── v1.1/
+│       ├── test-management.xlsx   requirements, test cases, results
+│       ├── test-report.pdf        test report (also as .docx)
+│       └── test-report.docx
 ├── deploy.py                      one-command deploy
 ├── cleanup.py                     remove everything from the cluster
 ├── run.py                         deploy -> all tests -> cleanup
@@ -241,7 +242,7 @@ time. The application was later reviewed and hardened with Claude Code
 stock updates, secrets, and network and database permissions.
 
 **2. Automating the tests.** Claude Code was used to help turn the test cases
-in [test-management.xlsx](docs/test-management.xlsx) into automated pytest
+in [test-management.xlsx](docs/v1.1/test-management.xlsx) into automated pytest
 code: unit tests with faked dependencies, integration tests against the
 deployed cluster, and Playwright tests for the browser. Every test carries the
 ID of the test case it automates and follows its steps. The suite was run
