@@ -7,7 +7,7 @@
 
 Reports are written to reports/:
     junit.xml                   machine-readable results (for CI)
-    test-case-results.csv       one row per test case ID, for docs/test-management.xlsx
+    test-case-results.csv       one row per test case ID, for docs/v<release>/test-management.xlsx
 """
 import argparse
 import subprocess

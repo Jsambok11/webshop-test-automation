@@ -1,6 +1,7 @@
 """Shared pytest setup for every test level.
 
-Each test is linked to a test case in docs/test-management.xlsx with a marker:
+Each test is linked to a test case in docs/v<release>/test-management.xlsx
+with a marker:
 
     @pytest.mark.tc("UT-001")
 
