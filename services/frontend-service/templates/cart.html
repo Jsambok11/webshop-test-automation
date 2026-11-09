@@ -27,7 +27,7 @@
                 </div>
                 <div class="delivery-option">
                     <input type="radio" name="delivery_method" value="door" id="door" checked>
-                    <label for="door">Delivery to door – $5.00</label>
+                    <label for="door">Delivery to door – {% if door_fee == 0 %}Free{% else %}${{ door_fee|money }}{% endif %}</label>
                 </div>
                 <div class="delivery-option">
                     <input type="radio" name="delivery_method" value="pickup" id="pickup">

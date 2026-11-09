@@ -25,7 +25,7 @@ A customer can:
 - **browse** products with price and stock
 - **add products to a cart**, change it, and keep it when logging in
 - **check out** with a post code and delivery method (pickup at the store
-  free, delivery to the door $5.00) and get a **receipt**
+  free, delivery to the door $5.00, free from $100.00) and get a **receipt**
 - **delete their account** (their orders are kept, anonymized)
 
 Behind the pages, the shop makes sure that:
