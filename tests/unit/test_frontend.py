@@ -1,7 +1,9 @@
-"""Unit tests for the frontend: cart rules, checkout guards, rate limiting and
-behaviour when a backend is down. The backend services are mocked, the session
+"""Unit tests for the frontend: cart rules, checkout guards, delivery fees, rate
+limiting and behaviour when a backend is down. The backend services are mocked, the session
 cookie is read and written directly. CSRF is off here (tested at integration
 level); rate limiting is switched on only in its own tests."""
+import re
+
 import pytest
 import requests
 
@@ -305,3 +307,69 @@ def test_frontend_when_a_backend_is_unreachable(frontend):
     # And no page reveals the exception text
     for page in (home, product_page, login, checkout):
         assert SECRET not in page.get_data(as_text=True)
+
+
+# ---------------------------------------------------------------- REQ-42
+def receipt_delivery_and_total(page):
+    """The delivery fee and the total shown on a receipt page, e.g. ("5.00", "104.99")."""
+    fee = re.search(r'<div class="delivery">.*?\$(\d+\.\d{2})\s*</div>', page, re.S)
+    total = re.search(r'data-testid="order-total">([\d.]+)<', page)
+    assert fee and total, "receipt has no delivery fee or total"
+    return fee.group(1), total.group(1)
+
+
+@pytest.mark.tc("UT-041")
+@pytest.mark.parametrize("items_total, fee, total", [
+    ("99.99", "5.00", "104.99"),     # one cent below the limit
+    ("100.00", "0.00", "100.00"),    # on the limit: free
+    ("100.01", "0.00", "100.01"),    # one cent above the limit
+], ids=["99.99", "100.00", "100.01"])
+def test_door_delivery_fee_at_the_100_limit(frontend, items_total, fee, total):
+    """UT-041: $99.99 + $5.00 also shows that the fee itself does not count towards the limit."""
+    # Given a customer ready to check out, and the order's items total
+    form = logged_in_with_cart(frontend, [{"product_id": 1, "quantity": 1}])
+    frontend.outgoing.post.return_value = response(201, placed_order(lines=(("Item", items_total, 1),)))
+
+    # When the order is placed with Delivery to door
+    resp = frontend.api.post("/checkout", data={**form, "delivery_method": "door"})
+
+    # Then the receipt shows the delivery fee and total for that amount
+    assert resp.status_code == 200
+    assert receipt_delivery_and_total(resp.get_data(as_text=True)) == (fee, total)
+
+
+@pytest.mark.tc("UT-042")
+@pytest.mark.parametrize("items_total", ["99.99", "100.00"])
+def test_pickup_is_free_on_both_sides_of_the_limit(frontend, items_total):
+    """UT-042"""
+    # Given a customer ready to check out, and the order's items total
+    form = logged_in_with_cart(frontend, [{"product_id": 1, "quantity": 1}])
+    frontend.outgoing.post.return_value = response(201, placed_order(lines=(("Item", items_total, 1),)))
+
+    # When the order is placed with Pickup at store
+    resp = frontend.api.post("/checkout", data={**form, "delivery_method": "pickup"})
+
+    # Then delivery is free and the total is the items total
+    assert resp.status_code == 200
+    assert receipt_delivery_and_total(resp.get_data(as_text=True)) == ("0.00", items_total)
+
+
+@pytest.mark.tc("UT-043")
+@pytest.mark.parametrize("price, door_label", [
+    ("99.99", "Delivery to door – $5.00"),
+    ("100.00", "Delivery to door – Free"),
+], ids=["99.99", "100.00"])
+def test_cart_shows_the_delivery_fee_for_the_subtotal(frontend, price, door_label):
+    """UT-043"""
+    # Given a logged-in customer with one product of the given price in the cart
+    products_answer(frontend, {1: product(1, price=price)})
+    set_session(frontend, user_id=1, user_email="customer@example.com",
+                cart=[{"product_id": 1, "quantity": 1}])
+
+    # When the cart is opened
+    page = frontend.api.get("/cart").get_data(as_text=True)
+
+    # Then door delivery shows the fee for this subtotal, and pickup is free
+    assert f"Subtotal: ${price}" in page
+    assert door_label in page
+    assert "Pickup at store – Free" in page
