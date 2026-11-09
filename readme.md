@@ -25,7 +25,7 @@ A customer can:
 - **browse** products with price and stock
 - **add products to a cart**, change it, and keep it when logging in
 - **check out** with a post code and delivery method (pickup at the store
-  free, delivery to the door $5.00) and get a **receipt**
+  free, delivery to the door $5.00, free from $100.00) and get a **receipt**
 - **delete their account** (their orders are kept, anonymized)
 
 Behind the pages, the shop makes sure that:
@@ -144,7 +144,7 @@ playwright install chromium
   [1.1 workbook](docs/v1.1/test-management.xlsx) holds 41 requirements,
   103 test cases (one sheet per level), test results and a summary. The
   [1.2 workbook](docs/v1.2/test-management.xlsx), in progress, adds 6
-  requirements and 14 test cases. Every automated test carries its test case
+  requirements and 15 test cases. Every automated test carries its test case
   ID, so results map straight back to requirements.
 - **Release 1.2** (in progress): free delivery from $100, product cards with
   images, 20 products. See the [test plan](docs/v1.2/test-plan.pdf).

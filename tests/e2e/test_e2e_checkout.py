@@ -6,7 +6,7 @@ from playwright.sync_api import Page, expect
 
 from shop_ui import add_to_cart, cart_link, check_out, start_checkout, url_ending
 
-EAR_PLUGS, JBL = 5, 3   # product ids, used by the test helpers
+EAR_PLUGS, JBL, POWERBANK = 5, 3, 4   # product ids, used by the test helpers
 THANK_YOU = "Thank You for Your Order!"
 
 
@@ -145,3 +145,35 @@ def test_receipt_after_buying(page: Page, new_user, set_stock, start_logged_in):
     expect(page.get_by_test_id("order-total")).to_have_text("24.90")
     # And the cart is empty again
     expect(cart_link(page, 0)).to_be_visible()
+
+
+# ---------------------------------------------------------------- REQ-42
+@pytest.mark.tc("E2E-022")
+def test_free_delivery_from_100(page: Page, new_user, set_stock, start_logged_in):
+    """E2E-022"""
+    # Given a logged-in customer, Powerbank 5000mah and Ear Plugs in stock (test helper)
+    start_logged_in(new_user())
+    set_stock(POWERBANK, 100)
+    set_stock(EAR_PLUGS, 100)
+    door = page.locator("label[for=door]")
+
+    # When they add 1 Powerbank 5000mah ($99.95) and open Cart
+    add_to_cart(page, "Powerbank 5000mah", 1)
+    page.goto("/cart")
+    # Then door delivery still costs $5.00
+    expect(page.locator(".total")).to_have_text("Subtotal: $99.95")
+    expect(door).to_have_text("Delivery to door – $5.00")
+
+    # When they add 1 Ear Plugs ($9.95) and open Cart again
+    add_to_cart(page, "Ear Plugs", 1)
+    page.goto("/cart")
+    # Then door delivery is free
+    expect(page.locator(".total")).to_have_text("Subtotal: $109.90")
+    expect(door).to_have_text("Delivery to door – Free")
+
+    # When they place the order with Delivery to door
+    check_out(page, "12345", "door")
+    # Then the receipt shows delivery $0.00 and total $109.90
+    expect(page.locator(".delivery")).to_contain_text("Delivery to door")
+    expect(page.locator(".delivery")).to_contain_text("$0.00")
+    expect(page.get_by_test_id("order-total")).to_have_text("109.90")

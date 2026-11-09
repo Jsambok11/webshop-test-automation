@@ -55,6 +55,8 @@ ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://order-service:80")
 
 MAX_QUANTITY_PER_ITEM = 1000
 DELIVERY_FEES = {"door": Decimal("5.00"), "pickup": Decimal("0.00")}
+# Door delivery is free from this items total (inclusive). The fee itself does not count.
+FREE_DOOR_DELIVERY_FROM = Decimal("100.00")
 DELIVERY_LABELS = {"door": "Delivery to door", "pickup": "Pickup at store"}
 SERVICE_UNAVAILABLE = "The service is temporarily unavailable. Please try again later."
 
@@ -102,6 +104,13 @@ def to_money(value):
 @app.template_filter("money")
 def money_filter(value):
     return f"{to_money(value):.2f}"
+
+
+def delivery_fee(method, items_total):
+    """Fee for a delivery method; door delivery is free from FREE_DOOR_DELIVERY_FROM."""
+    if method == "door" and to_money(items_total) >= FREE_DOOR_DELIVERY_FROM:
+        return Decimal("0.00")
+    return DELIVERY_FEES[method]
 
 
 # ------------------- HELPERS -------------------
@@ -230,6 +239,7 @@ def cart():
     if len(kept) != len(get_cart()):
         session["cart"] = kept
     return render_template("cart.html", items=cart_items, total=total,
+                           door_fee=delivery_fee("door", total),
                            checkout_token=checkout_token() if cart_items else None)
 
 
@@ -381,14 +391,15 @@ def checkout():
     session.pop("cart", None)
     session.pop("checkout_token", None)
 
-    delivery_fee = DELIVERY_FEES[delivery_method]
+    items_total = to_money(order["total"])
+    fee = delivery_fee(delivery_method, items_total)
     receipt = {
         "order": order,
-        "items_total": to_money(order["total"]),
-        "delivery_fee": delivery_fee,
+        "items_total": items_total,
+        "delivery_fee": fee,
         "delivery_method": DELIVERY_LABELS[delivery_method],
         "post_code": post_code,
-        "total": to_money(order["total"]) + delivery_fee,
+        "total": items_total + fee,
         # Mock payment: always approved.
         "payment": {"method": "Klarna", "transaction_id": f"KLARNA-{token[:12].upper()}"},
         "customer_email": session.get("user_email"),
