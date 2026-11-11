@@ -82,8 +82,14 @@ data:
         (N'JBL 775 NC', 1200, 55),
         (N'Powerbank 5000mah', 99.95, 500),
         (N'Ear Plugs', 9.95, 550),
-        (N'Cat Ears headband', 149.50, 310);
+        (N'Bunny Ears Headband', 149.50, 310);
     END
+    GO
+    -- Renamed in release 1.2. Only the old name is changed, so a product that
+    -- was edited by hand is left alone. Old orders keep the name they were
+    -- placed with (OrderItems.ProductName).
+    UPDATE dbo.Products SET Name = N'Bunny Ears Headband'
+        WHERE Id = 6 AND Name = N'Cat Ears headband';
     GO
     -- Added in release 1.2. A separate step, so new databases and databases
     -- created by 1.1 go through the same code. Both columns are optional.
