@@ -13,10 +13,15 @@ require_internal_token(app, required_env("INTERNAL_API_TOKEN"))
 db = Database.from_env("ProductsDB")
 
 
+PRODUCT_COLUMNS = "Id, Name, Price, Stock, Description, ImageFile"
+
+
 def product_to_dict(row):
     # Money is sent as a string ("9999.95"), never as a float, so no precision
     # is lost between the DECIMAL column and the client.
-    return {"id": row[0], "name": row[1], "price": f"{row[2]:.2f}", "stock": row[3]}
+    # description and image are optional (NULL -> null); image is a file name.
+    return {"id": row[0], "name": row[1], "price": f"{row[2]:.2f}", "stock": row[3],
+            "description": row[4], "image": row[5]}
 
 
 def parse_quantity():
@@ -46,7 +51,7 @@ def health():
 def list_products():
     try:
         with db.cursor() as cur:
-            cur.execute("SELECT Id, Name, Price, Stock FROM Products ORDER BY Id")
+            cur.execute(f"SELECT {PRODUCT_COLUMNS} FROM Products ORDER BY Id")
             rows = cur.fetchall()
     except Exception:
         log.exception("Failed to list products")
@@ -58,7 +63,7 @@ def list_products():
 def get_product(product_id):
     try:
         with db.cursor() as cur:
-            cur.execute("SELECT Id, Name, Price, Stock FROM Products WHERE Id = ?", product_id)
+            cur.execute(f"SELECT {PRODUCT_COLUMNS} FROM Products WHERE Id = ?", product_id)
             row = cur.fetchone()
     except Exception:
         log.exception("Failed to fetch product %s", product_id)
