@@ -1,4 +1,6 @@
-"""Unit tests for product-service: stock change validation. Database mocked."""
+"""Unit tests for product-service: stock change validation and product fields. Database mocked."""
+from decimal import Decimal
+
 import pytest
 
 from support import AUTH
@@ -58,3 +60,40 @@ def test_increase_stock_for_unknown_product(product_service):
 
     assert resp.status_code == 404
     assert resp.get_json() == {"error": "Product not found"}
+
+
+# ---------------------------------------------------------------- REQ-44
+WITH_DETAILS = (1, "Ear Plugs", Decimal("9.95"), 550, "Soft foam ear plugs.", "ear-plugs.jpg")
+WITHOUT_DETAILS = (2, "Old Product", Decimal("1.00"), 3, None, None)   # NULL in the database
+
+
+@pytest.mark.tc("UT-044")
+def test_product_list_returns_description_and_image(product_service):
+    """UT-044 (GET /products)"""
+    # Given one product with a description and an image, and one with neither
+    product_service.cursor.fetchall.return_value = [WITH_DETAILS, WITHOUT_DETAILS]
+
+    resp = product_service.api.get("/products", headers=AUTH)
+
+    # Then both fields are returned with the stored values, NULL as null
+    assert resp.status_code == 200
+    assert resp.get_json() == [
+        {"id": 1, "name": "Ear Plugs", "price": "9.95", "stock": 550,
+         "description": "Soft foam ear plugs.", "image": "ear-plugs.jpg"},
+        {"id": 2, "name": "Old Product", "price": "1.00", "stock": 3,
+         "description": None, "image": None},
+    ]
+
+
+@pytest.mark.tc("UT-044")
+@pytest.mark.parametrize("row", [WITH_DETAILS, WITHOUT_DETAILS], ids=["with-details", "null-details"])
+def test_product_returns_description_and_image(product_service, row):
+    """UT-044 (GET /products/{id})"""
+    product_service.cursor.fetchone.return_value = row
+
+    resp = product_service.api.get(f"/products/{row[0]}", headers=AUTH)
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["description"] == row[4]
+    assert body["image"] == row[5]

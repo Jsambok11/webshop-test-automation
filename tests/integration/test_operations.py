@@ -1,5 +1,5 @@
 """Integration tests for operations: request tracing, persistence, behaviour
-during a database outage, and repeatable deployment.
+during a database outage, repeatable deployment and upgrading from 1.1.
 
 Tests marked `disruptive` stop the database or run deploy.py. They always run
 last (see conftest.py). Skip them during development with:
@@ -110,12 +110,24 @@ def test_database_outage_not_ready_and_not_restarted(api, urls, new_user, set_st
 
 
 # ---------------------------------------------------------------- REQ-39
+PRODUCT_COLUMNS_ADDED_IN_1_2 = ("Description", "ImageFile")
+
+
+def make_products_table_look_like_1_1(sql):
+    """Drop the columns that release 1.2 added, as on a database created by 1.1."""
+    for column in PRODUCT_COLUMNS_ADDED_IN_1_2:
+        rc, out = sql.run(f"IF COL_LENGTH('ProductsDB.dbo.Products', '{column}') IS NOT NULL "
+                          f"ALTER TABLE ProductsDB.dbo.Products DROP COLUMN {column}")
+        assert rc == 0, out
+
+
 @pytest.fixture(scope="module")
-def redeployed(api, urls, forwards):
+def redeployed(api, urls, forwards, sql):
     """Runs deploy.py twice, like a developer re-running the deployment.
 
-    The first run makes sure the cluster runs the current code; the state is
-    recorded before and after the second run, which must change nothing."""
+    Before the first run the database is put back in its 1.1 shape, so the
+    first run is also an upgrade from 1.1 (IT-044). The state is recorded
+    before and after the second run, which must change nothing."""
     # Given a user with an order
     email = "redeploy-check@example.com"
     user = api.post(f"{urls['user']}/users", json={"firstname": "Re", "surname": "Deploy",
@@ -123,6 +135,10 @@ def redeployed(api, urls, forwards):
     if "id" not in user:   # left over from an interrupted earlier run
         user = api.post(f"{urls['user']}/login", json={"email": email, "password": "Secret123"}).json()
     order = api.post(f"{urls['order']}/orders", json={"userId": user["id"], "items": [{"productId": 5, "quantity": 1}]}).json()
+    products_before = {p["id"]: p["stock"] for p in api.get(f"{urls['product']}/products").json()}
+
+    # And a database as release 1.1 left it
+    make_products_table_look_like_1_1(sql)
 
     # When deploy.py runs twice
     first = run_deploy()
@@ -132,7 +148,8 @@ def redeployed(api, urls, forwards):
     forwards.restart()
     after = deployment_state()
 
-    yield {"user": user, "order": order, "runs": [first, second], "before": before, "after": after}
+    yield {"user": user, "order": order, "runs": [first, second], "before": before, "after": after,
+           "products_before": products_before}
     api.delete(f"{urls['user']}/users/{user['id']}")
 
 
@@ -158,3 +175,27 @@ def test_deploy_without_code_changes_changes_nothing(redeployed):
     gives the same tag and Kubernetes has nothing to roll out."""
     assert redeployed["before"] == redeployed["after"]
     assert len(redeployed["after"]) == 4
+
+
+# ---------------------------------------------------------------- REQ-46
+@pytest.mark.tc("IT-044")
+@pytest.mark.disruptive
+def test_deploy_over_a_1_1_database(api, urls, redeployed):
+    """IT-044: deploying 1.2 over a 1.1 database adds the new product fields
+    and keeps the data. (The check for 20 products comes with issue #7.)"""
+    # Then both deploys finished
+    for run in redeployed["runs"]:
+        assert run.returncode == 0, run.stdout[-3000:] + run.stderr[-3000:]
+
+    # And every product has the description and image fields again
+    resp = api.get(f"{urls['product']}/products")
+    assert resp.status_code == 200
+    products = resp.json()
+    for p in products:
+        assert "description" in p and "image" in p, p
+
+    # And no product was lost, duplicated or had its stock changed
+    assert {p["id"]: p["stock"] for p in products} == redeployed["products_before"]
+
+    # And the test user's order is still there
+    assert api.get(f"{urls['order']}/orders/{redeployed['order']['id']}").status_code == 200
