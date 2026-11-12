@@ -14,7 +14,7 @@ import pytest
 from cluster import PortForwards, ResilientSession, Sql, kubectl, logged_in_cookie, read_secret
 
 __all__ = ["forwards", "urls", "token", "http", "api", "sql", "new_user", "set_stock",
-           "place_order", "orders_of", "shop"]
+           "set_image", "place_order", "orders_of", "shop"]
 
 
 @pytest.fixture(scope="session")
@@ -99,6 +99,27 @@ def set_stock(api, urls):
     yield set_to
     for pid, value in originals.items():
         set_to(pid, value)
+
+
+@pytest.fixture
+def set_image(api, urls, sql):
+    """set_image(product_id, "file.jpg") sets a product's image file name directly
+    in the database (the API has no way to change it); the original is restored
+    after the test. None means no image."""
+    originals = {}
+
+    def write(pid, file_name):
+        value = "NULL" if file_name is None else "N'" + file_name.replace("'", "''") + "'"
+        rc, out = sql.run(f"UPDATE ProductsDB.dbo.Products SET ImageFile = {value} WHERE Id = {int(pid)}")
+        assert rc == 0, out
+
+    def set_to(pid, file_name):
+        originals.setdefault(pid, api.get(f"{urls['product']}/products/{pid}").json()["image"])
+        write(pid, file_name)
+
+    yield set_to
+    for pid, file_name in originals.items():
+        write(pid, file_name)
 
 
 @pytest.fixture
