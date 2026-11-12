@@ -1,0 +1,6 @@
+{# The image of a product. Without an image (null or empty) the placeholder is
+   shown; if the image cannot be loaded, onerror switches to the placeholder. #}
+{% macro product_image(product) -%}
+<img src="{{ image_url(product) }}" alt="{{ product.name }}"
+     onerror="this.onerror = null; this.src = '{{ url_for('static', filename='placeholder.svg') }}';">
+{%- endmacro %}

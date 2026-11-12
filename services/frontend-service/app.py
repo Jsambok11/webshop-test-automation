@@ -106,6 +106,15 @@ def money_filter(value):
     return f"{to_money(value):.2f}"
 
 
+@app.template_global()
+def image_url(product):
+    """Address of a product's image (static/products/<file>), or of the
+    placeholder when the product has none (null or empty)."""
+    if product.get("image"):
+        return url_for("static", filename=f"products/{product['image']}")
+    return url_for("static", filename="placeholder.svg")
+
+
 def delivery_fee(method, items_total):
     """Fee for a delivery method; door delivery is free from FREE_DOOR_DELIVERY_FROM."""
     if method == "door" and to_money(items_total) >= FREE_DOOR_DELIVERY_FROM:
