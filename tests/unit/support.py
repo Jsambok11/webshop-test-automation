@@ -94,8 +94,10 @@ def user_body(**overrides):
             "password": "Secret123", **overrides}
 
 
-def product(pid, stock=100, price="10.00", name=None):
-    return {"id": pid, "name": name or f"Product {pid}", "price": price, "stock": stock}
+def product(pid, stock=100, price="10.00", name=None, description=None, image=None):
+    """A product as product-service returns it (description and image may be null)."""
+    return {"id": pid, "name": name or f"Product {pid}", "price": price, "stock": stock,
+            "description": description, "image": image}
 
 
 def sql_calls(cursor):

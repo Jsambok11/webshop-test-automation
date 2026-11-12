@@ -1,8 +1,9 @@
-"""Unit tests for the frontend: cart rules, checkout guards, delivery fees, rate
+"""Unit tests for the frontend: product images, cart rules, checkout guards, delivery fees, rate
 limiting and behaviour when a backend is down. The backend services are mocked, the session
 cookie is read and written directly. CSRF is off here (tested at integration
 level); rate limiting is switched on only in its own tests."""
 import re
+from html.parser import HTMLParser
 
 import pytest
 import requests
@@ -14,8 +15,11 @@ UNAVAILABLE = "The service is temporarily unavailable. Please try again later."
 
 
 def products_answer(frontend, catalogue):
-    """Make the mocked product-service answer GET /products/{id}: 404 for unknown ids."""
+    """Make the mocked product-service answer GET /products (the whole catalogue)
+    and GET /products/{id} (404 for unknown ids)."""
     def get(url, **_):
+        if url.rstrip("/").endswith("/products"):
+            return response(200, list(catalogue.values()))
         pid = int(url.rstrip("/").rsplit("/", 1)[1])
         if pid in catalogue:
             return response(200, catalogue[pid])
@@ -373,3 +377,52 @@ def test_cart_shows_the_delivery_fee_for_the_subtotal(frontend, price, door_labe
     assert f"Subtotal: ${price}" in page
     assert door_label in page
     assert "Pickup at store – Free" in page
+
+
+# ---------------------------------------------------------------- REQ-44, REQ-45
+PLACEHOLDER = "/static/placeholder.svg"
+
+
+def images(page):
+    """The <img> tags of a page, each as a dict of its attributes."""
+    found = []
+
+    class ImageTags(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            if tag == "img":
+                found.append(dict(attrs))
+
+    ImageTags().feed(page)
+    return found
+
+
+@pytest.mark.tc("UT-045")
+def test_product_page_shows_image_and_description(frontend):
+    """UT-045"""
+    # Given product-service returns a product with a description and an image
+    products_answer(frontend, {1: product(1, name="Ear Plugs", description="Soft foam ear plugs.",
+                                          image="ear-plugs.jpg")})
+
+    # When the product page is opened
+    page = frontend.api.get("/product/1").get_data(as_text=True)
+
+    # Then the description is shown
+    assert "Soft foam ear plugs." in page
+    # And the page has the product's image, with the product name as alt text
+    assert [(i["src"], i["alt"]) for i in images(page)] == [("/static/products/ear-plugs.jpg", "Ear Plugs")]
+
+
+@pytest.mark.tc("UT-046")
+@pytest.mark.parametrize("image", [None, ""], ids=["image null", "image empty"])
+@pytest.mark.parametrize("path", ["/", "/product/1"], ids=["home page", "product page"])
+def test_product_without_image_shows_the_placeholder(frontend, path, image):
+    """UT-046"""
+    # Given product-service returns a product without an image (null or '')
+    products_answer(frontend, {1: product(1, image=image)})
+
+    # When the home page (card) or the product page is opened
+    resp = frontend.api.get(path)
+
+    # Then the placeholder is shown, and no image has an empty address
+    assert resp.status_code == 200
+    assert [i["src"] for i in images(resp.get_data(as_text=True))] == [PLACEHOLDER]

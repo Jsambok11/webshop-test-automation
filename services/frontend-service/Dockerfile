@@ -6,6 +6,7 @@ COPY frontend-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY common/servicekit.py frontend-service/app.py ./
 COPY frontend-service/templates/ templates/
+COPY frontend-service/static/ static/
 
 # Do not run as root inside the container.
 RUN useradd --create-home --uid 10001 appuser

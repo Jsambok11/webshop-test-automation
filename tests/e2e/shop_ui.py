@@ -73,6 +73,14 @@ def check_out(page: Page, post_code: str = "12345", delivery: str = "door"):
     page.get_by_role("button", name="Place Order").click()
 
 
+PLACEHOLDER_IMAGE = re.compile(r"/static/placeholder\.svg$")
+
+
+def image_is_shown(img) -> bool:
+    """True when the browser loaded and decoded the image, False for a broken image."""
+    return img.evaluate("i => i.decode().then(() => i.naturalWidth > 0, () => false)")
+
+
 def url_ending(path: str):
     """Match a page URL by its path, e.g. url_ending("/cart")."""
     return re.compile(re.escape(path) + r"$")

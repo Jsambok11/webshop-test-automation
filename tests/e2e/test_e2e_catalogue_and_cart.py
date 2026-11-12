@@ -4,7 +4,8 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-from shop_ui import add_to_cart, cart_link, log_in, open_product, url_ending
+from shop_ui import (PLACEHOLDER_IMAGE, add_to_cart, cart_link, image_is_shown, log_in, open_product,
+                     url_ending)
 
 EAR_PLUGS, JBL, LENOVO = 5, 3, 2   # product ids, used by the test helpers
 
@@ -125,3 +126,63 @@ def test_cart_is_kept_when_you_log_in(page: Page, new_user, set_stock):
 
     # Then Ear Plugs is still in the cart with the same quantity
     expect(page.locator(".cart-item", has_text="Ear Plugs")).to_contain_text("× 3")
+
+
+# ---------------------------------------------------------------- REQ-43
+@pytest.mark.tc("E2E-023")
+def test_products_are_shown_as_cards(page: Page):
+    """E2E-023"""
+    # When the visitor opens the home page
+    page.goto("/")
+
+    # Then every product is a card with an image, the name, a price like $9999.95 and the stock
+    cards = page.locator(".product-card")
+    expect(cards.first).to_be_visible()
+    for i in range(cards.count()):
+        card = cards.nth(i)
+        name = card.locator(".product-name").inner_text()
+        assert name, f"card {i + 1} has no name"
+        image = card.get_by_role("img")
+        expect(image).to_have_attribute("alt", name)
+        assert image_is_shown(image), f"the image of {name} is broken"
+        expect(card.locator(".price")).to_have_text(re.compile(r"^\$\d+\.\d{2}$"))
+        expect(card.locator(".stock")).to_have_text(re.compile(r"Stock: \d+"))
+
+    # And clicking a card opens that product's page
+    cards.filter(has_text="Ear Plugs").click()
+    expect(page).to_have_url(url_ending(f"/product/{EAR_PLUGS}"))
+    expect(page.get_by_role("heading", name="Ear Plugs")).to_be_visible()
+
+
+# ---------------------------------------------------------------- REQ-45
+@pytest.mark.tc("E2E-025")
+def test_image_that_cannot_be_loaded(page: Page, set_image):
+    """E2E-025"""
+    # Given the image of Ear Plugs cannot be loaded (test helper: Ear Plugs gets
+    # an image file name, and the browser's request for that file is blocked)
+    set_image(EAR_PLUGS, "ear-plugs.jpg")
+    page.route("**/static/products/ear-plugs.jpg", lambda route: route.abort())
+
+    # When the visitor opens the home page
+    page.goto("/")
+
+    # Then the Ear Plugs card shows the placeholder, not a broken image
+    card = page.locator(".product-card", has_text="Ear Plugs")
+    image = card.get_by_role("img")
+    expect(image).to_have_attribute("src", PLACEHOLDER_IMAGE)
+    assert image_is_shown(image)
+    # And the name, price and stock are still shown
+    expect(card.locator(".product-name")).to_have_text("Ear Plugs")
+    expect(card.locator(".price")).to_have_text("$9.95")
+    expect(card.locator(".stock")).to_have_text(re.compile(r"Stock: \d+"))
+
+    # When the visitor opens Ear Plugs
+    card.click()
+
+    # Then the product page shows the placeholder too, with the name, price and stock
+    image = page.locator(".product-detail").get_by_role("img")
+    expect(image).to_have_attribute("src", PLACEHOLDER_IMAGE)
+    assert image_is_shown(image)
+    expect(page.get_by_role("heading", name="Ear Plugs")).to_be_visible()
+    expect(page.get_by_text("$9.95")).to_be_visible()
+    expect(page.get_by_text(re.compile(r"Stock: \d+"))).to_be_visible()
