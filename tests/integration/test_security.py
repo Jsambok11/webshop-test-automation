@@ -164,7 +164,7 @@ def test_post_without_csrf_token_is_rejected(shop, path):
 @pytest.mark.tc("IT-033")
 def test_state_changes_are_not_possible_with_get(shop, new_user):
     """IT-033: a link or <img> on another site must not log users out or change the cart."""
-    # Given a logged-in customer with Asus TUF 15 in the cart
+    # Given a logged-in customer with Gaming Laptop 15 in the cart
     user = new_user()
     browser = shop(user, cart=[(1, 1)])
 
@@ -174,7 +174,7 @@ def test_state_changes_are_not_possible_with_get(shop, new_user):
 
     # Then the customer is still logged in and the cart is unchanged
     assert f"Welcome, {user['email']}" in browser.get(f"{browser.base}/").text
-    assert "Asus TUF 15" in browser.get(f"{browser.base}/cart").text
+    assert "Gaming Laptop 15" in browser.get(f"{browser.base}/cart").text
 
 
 # ---------------------------------------------------------------- REQ-32

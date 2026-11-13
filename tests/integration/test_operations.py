@@ -111,13 +111,24 @@ def test_database_outage_not_ready_and_not_restarted(api, urls, new_user, set_st
 
 # ---------------------------------------------------------------- REQ-39
 PRODUCT_COLUMNS_ADDED_IN_1_2 = ("Description", "ImageFile")
+NAMES_IN_1_1 = {1: "Asus TUF 15", 2: "Lenovo Yoga 3", 3: "JBL 775 NC", 6: "Cat Ears headband"}
+NAMES_IN_1_2 = {1: "Gaming Laptop 15", 2: "2-in-1 Laptop 13", 3: "Noise-Cancelling Headphones",
+                6: "Bunny Ears Headband"}
+ORIGINAL_PRODUCTS = range(1, 7)   # the 6 products of release 1.1
+ALL_PRODUCTS = 20
 
 
 def make_products_table_look_like_1_1(sql):
-    """Drop the columns that release 1.2 added, as on a database created by 1.1."""
-    for column in PRODUCT_COLUMNS_ADDED_IN_1_2:
-        rc, out = sql.run(f"IF COL_LENGTH('ProductsDB.dbo.Products', '{column}') IS NOT NULL "
-                          f"ALTER TABLE ProductsDB.dbo.Products DROP COLUMN {column}")
+    """Put ProductsDB back in the state release 1.1 left it: only the 6 original
+    products, with their old names, and without the columns added in 1.2."""
+    statements = [f"DELETE FROM ProductsDB.dbo.Products WHERE Id > {max(ORIGINAL_PRODUCTS)}"]
+    statements += [f"UPDATE ProductsDB.dbo.Products SET Name = N'{name}' WHERE Id = {pid}"
+                   for pid, name in NAMES_IN_1_1.items()]
+    statements += [f"IF COL_LENGTH('ProductsDB.dbo.Products', '{column}') IS NOT NULL "
+                   f"ALTER TABLE ProductsDB.dbo.Products DROP COLUMN {column}"
+                   for column in PRODUCT_COLUMNS_ADDED_IN_1_2]
+    for statement in statements:
+        rc, out = sql.run(statement)
         assert rc == 0, out
 
 
@@ -135,7 +146,8 @@ def redeployed(api, urls, forwards, sql):
     if "id" not in user:   # left over from an interrupted earlier run
         user = api.post(f"{urls['user']}/login", json={"email": email, "password": "Secret123"}).json()
     order = api.post(f"{urls['order']}/orders", json={"userId": user["id"], "items": [{"productId": 5, "quantity": 1}]}).json()
-    products_before = {p["id"]: p["stock"] for p in api.get(f"{urls['product']}/products").json()}
+    products_before = {p["id"]: p["stock"] for p in api.get(f"{urls['product']}/products").json()
+                       if p["id"] in ORIGINAL_PRODUCTS}
 
     # And a database as release 1.1 left it
     make_products_table_look_like_1_1(sql)
@@ -181,21 +193,26 @@ def test_deploy_without_code_changes_changes_nothing(redeployed):
 @pytest.mark.tc("IT-044")
 @pytest.mark.disruptive
 def test_deploy_over_a_1_1_database(api, urls, redeployed):
-    """IT-044: deploying 1.2 over a 1.1 database adds the new product fields
-    and keeps the data. (The check for 20 products comes with issue #7.)"""
+    """IT-044: deploying 1.2 over a 1.1 database gives 20 complete products,
+    renames the original ones and keeps their stock."""
     # Then both deploys finished
     for run in redeployed["runs"]:
         assert run.returncode == 0, run.stdout[-3000:] + run.stderr[-3000:]
 
-    # And every product has the description and image fields again
+    # And after the second deploy there are still exactly 20 products, no duplicates
     resp = api.get(f"{urls['product']}/products")
     assert resp.status_code == 200
-    products = resp.json()
-    for p in products:
-        assert "description" in p and "image" in p, p
+    products = {p["id"]: p for p in resp.json()}
+    assert len(resp.json()) == len(products) == ALL_PRODUCTS
 
-    # And no product was lost, duplicated or had its stock changed
-    assert {p["id"]: p["stock"] for p in products} == redeployed["products_before"]
+    # And every product has a description and an image, the 6 original ones too
+    for p in products.values():
+        assert p["description"] and p["image"], p
+
+    # And the original products have their new names and unchanged stock
+    for pid, name in NAMES_IN_1_2.items():
+        assert products[pid]["name"] == name
+    assert {pid: products[pid]["stock"] for pid in ORIGINAL_PRODUCTS} == redeployed["products_before"]
 
     # And the test user's order is still there
     assert api.get(f"{urls['order']}/orders/{redeployed['order']['id']}").status_code == 200
