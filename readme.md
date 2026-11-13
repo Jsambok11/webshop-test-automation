@@ -22,7 +22,8 @@ test automation.
 A customer can:
 
 - **register** an account and **log in** (passwords are stored as salted hashes)
-- **browse** products with price and stock
+- **browse** 20 products as cards with image, price and stock, and open a product
+  page with a larger image and a description
 - **add products to a cart**, change it, and keep it when logging in
 - **check out** with a post code and delivery method (pickup at the store
   free, delivery to the door $5.00, free from $100.00) and get a **receipt**
@@ -168,10 +169,10 @@ form where it fits:
 def test_product_sells_out_before_you_check_out(page, new_user, set_stock, start_logged_in, orders_of):
     # Given a logged-in customer (test helper)
     ...
-    # When they add 2 JBL 775 NC to the cart
-    add_to_cart(page, "JBL 775 NC", 2)
+    # When they add 2 Noise-Cancelling Headphones to the cart
+    add_to_cart(page, "Noise-Cancelling Headphones", 2)
     # And the stock drops to 1 before they check out (test helper)
-    set_stock(JBL, 1)
+    set_stock(HEADPHONES, 1)
     ...
     # Then they are told why, and that nothing was charged
 ```
@@ -210,7 +211,7 @@ flowchart LR
 .
 ├── services/
 │   ├── common/servicekit.py       shared code: service token, request IDs, database access
-│   ├── frontend-service/          app.py, templates/, Dockerfile
+│   ├── frontend-service/          app.py, templates/, static/ (product images), Dockerfile
 │   ├── user-service/              app.py, Dockerfile
 │   ├── product-service/           app.py, Dockerfile
 │   └── order-service/             app.py, Dockerfile
@@ -228,6 +229,7 @@ flowchart LR
 │       ├── test-plan.pdf          test plan (also as .docx)
 │       ├── test-plan.docx
 │       └── test-management.xlsx   requirements, test cases, results
+├── CREDITS.md                     sources and licences of the product images
 ├── deploy.py                      one-command deploy
 ├── cleanup.py                     remove everything from the cluster
 ├── run.py                         deploy -> all tests -> cleanup
@@ -301,4 +303,5 @@ mocked payment and e-mail.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). The product images are not covered by it: they
+are used under their own licences, listed in [CREDITS.md](CREDITS.md).

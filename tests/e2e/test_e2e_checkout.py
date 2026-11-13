@@ -6,7 +6,7 @@ from playwright.sync_api import Page, expect
 
 from shop_ui import add_to_cart, cart_link, check_out, start_checkout, url_ending
 
-EAR_PLUGS, JBL, POWERBANK = 5, 3, 4   # product ids, used by the test helpers
+EAR_PLUGS, HEADPHONES, POWERBANK = 5, 3, 4   # product ids, used by the test helpers
 THANK_YOU = "Thank You for Your Order!"
 
 
@@ -60,17 +60,17 @@ def test_buy_two_different_products(page: Page, new_user, set_stock, start_logge
     # Given a logged-in customer (test helper)
     customer = new_user()
     start_logged_in(customer)
-    set_stock(JBL, 100)
+    set_stock(HEADPHONES, 100)
     set_stock(EAR_PLUGS, 100)
 
-    # When they add JBL 775 NC and Ear Plugs, enter a post code and click Place Order
-    add_to_cart(page, "JBL 775 NC", 1)
+    # When they add Noise-Cancelling Headphones and Ear Plugs, enter a post code and click Place Order
+    add_to_cart(page, "Noise-Cancelling Headphones", 1)
     add_to_cart(page, "Ear Plugs", 1)
     check_out(page)
 
     # Then the receipt shows ONE order number with both products
     expect(page.get_by_test_id("order-id")).to_have_count(1)
-    expect(page.locator(".order-item", has_text="JBL 775 NC")).to_be_visible()
+    expect(page.locator(".order-item", has_text="Noise-Cancelling Headphones")).to_be_visible()
     expect(page.locator(".order-item", has_text="Ear Plugs")).to_be_visible()
     # And the shop has exactly one order for the customer (test helper)
     assert len(orders_of(customer["id"])) == 1
@@ -83,20 +83,20 @@ def test_product_sells_out_before_you_check_out(page: Page, new_user, set_stock,
     # Given a logged-in customer (test helper)
     customer = new_user()
     start_logged_in(customer)
-    set_stock(JBL, 10)
+    set_stock(HEADPHONES, 10)
 
-    # When they add 2 JBL 775 NC to the cart
-    add_to_cart(page, "JBL 775 NC", 2)
+    # When they add 2 Noise-Cancelling Headphones to the cart
+    add_to_cart(page, "Noise-Cancelling Headphones", 2)
     # And the stock drops to 1 before they check out (test helper)
-    set_stock(JBL, 1)
+    set_stock(HEADPHONES, 1)
     # And they open Cart, enter a post code and click Place Order
     check_out(page)
 
     # Then they are told why, and that nothing was charged
-    expect(page.get_by_text(
-        "Order not placed, nothing was charged: JBL 775 NC: Insufficient stock. Available: 1")).to_be_visible()
-    # And JBL 775 NC is still in the cart
-    expect(page.locator(".cart-item", has_text="JBL 775 NC")).to_be_visible()
+    expect(page.get_by_text("Order not placed, nothing was charged: "
+                            "Noise-Cancelling Headphones: Insufficient stock. Available: 1")).to_be_visible()
+    # And Noise-Cancelling Headphones is still in the cart
+    expect(page.locator(".cart-item", has_text="Noise-Cancelling Headphones")).to_be_visible()
     # And no receipt is shown, and no order exists (test helper)
     expect(page.get_by_text(THANK_YOU)).to_have_count(0)
     assert orders_of(customer["id"]) == []

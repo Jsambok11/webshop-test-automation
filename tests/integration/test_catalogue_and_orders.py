@@ -221,7 +221,7 @@ def test_key_reused_by_another_user(new_user, set_stock, place_order):
 def test_resent_checkout_form_shows_the_same_order(new_user, set_stock, shop, orders_of):
     """IT-023: a browser re-sending the form (double-click, back + resubmit)
     still sends the old session and the same checkout token."""
-    # Given a logged-in customer with Asus TUF 15 in the cart
+    # Given a logged-in customer with Gaming Laptop 15 in the cart
     user = new_user()
     set_stock(1, 5)
     browser = shop(user, cart=[(1, 1)])
@@ -268,3 +268,39 @@ def test_old_order_keeps_its_price(api, urls, sql, new_user, set_stock, place_or
         assert again["total"] == order["total"]
     finally:
         sql.run(f"UPDATE ProductsDB.dbo.Products SET Price = {price_then} WHERE Id = 5")
+
+
+# ---------------------------------------------------------------- REQ-46
+ALL_PRODUCTS = 20
+
+
+@pytest.mark.tc("IT-042")
+def test_product_api_lists_20_complete_products(api, urls):
+    """IT-042"""
+    # When the product list is requested
+    resp = api.get(f"{urls['product']}/products")
+
+    # Then there are exactly 20 products, ordered by id
+    assert resp.status_code == 200
+    products = resp.json()
+    assert len(products) == ALL_PRODUCTS
+    assert [p["id"] for p in products] == sorted(p["id"] for p in products)
+    # And every product has a description and an image
+    for p in products:
+        assert p["description"] and p["description"].strip(), p
+        assert p["image"] and p["image"].strip(), p
+
+
+@pytest.mark.tc("IT-043")
+def test_every_product_image_can_be_loaded(api, http, urls):
+    """IT-043: through the frontend, as a browser loads them (no token needed)."""
+    products = api.get(f"{urls['product']}/products").json()
+    assert products
+
+    for p in products:
+        # Then no product uses the placeholder
+        assert p["image"], f"{p['name']} has no image"
+        # And its image answers 200 with an image content type
+        resp = http.get(f"{urls['frontend']}/static/products/{p['image']}")
+        assert resp.status_code == 200, f"{p['name']}: {p['image']} answered {resp.status_code}"
+        assert resp.headers["Content-Type"].startswith("image/"), (p["image"], resp.headers["Content-Type"])

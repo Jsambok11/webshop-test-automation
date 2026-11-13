@@ -90,15 +90,15 @@ def test_product_that_no_longer_exists_is_removed_from_the_cart(frontend):
 @pytest.mark.tc("UT-014")
 def test_quantity_above_stock_is_not_added(frontend):
     """UT-014"""
-    # Given Asus TUF 15 has 15 in stock
-    products_answer(frontend, {1: product(1, stock=15, name="Asus TUF 15")})
+    # Given Gaming Laptop 15 has 15 in stock
+    products_answer(frontend, {1: product(1, stock=15, name="Gaming Laptop 15")})
 
     # When the customer tries to add 16
     resp = frontend.api.post("/add-to-cart/1", data={"quantity": "16"})
 
     # Then nothing is added and the customer sees how many are left
     assert resp.headers["Location"].endswith("/product/1")
-    assert "Only 15 of Asus TUF 15 in stock." in flashed(frontend)
+    assert "Only 15 of Gaming Laptop 15 in stock." in flashed(frontend)
     assert get_session(frontend).get("cart", []) == []
 
 
@@ -107,7 +107,7 @@ def test_quantity_above_stock_is_not_added(frontend):
 def test_cart_quantity_plus_new_quantity_at_the_stock_boundary(frontend, extra, accepted):
     """UT-015: what is already in the cart counts towards the stock limit."""
     # Given stock is 15 and the cart already holds 10
-    products_answer(frontend, {1: product(1, stock=15, name="Asus TUF 15")})
+    products_answer(frontend, {1: product(1, stock=15, name="Gaming Laptop 15")})
     set_session(frontend, cart=[{"product_id": 1, "quantity": 10}])
 
     # When `extra` more are added
