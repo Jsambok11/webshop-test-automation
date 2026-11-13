@@ -68,28 +68,12 @@ data:
     USE ProductsDB;
     GO
     IF OBJECT_ID('dbo.Products') IS NULL
-    BEGIN
         CREATE TABLE dbo.Products (
             Id INT IDENTITY PRIMARY KEY,
             Name NVARCHAR(50) NOT NULL,
             Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
             Stock INT NOT NULL DEFAULT 0 CHECK (Stock >= 0)
         );
-        INSERT INTO dbo.Products (Name, Price, Stock)
-        VALUES
-        (N'Asus TUF 15', 9999.95, 15),
-        (N'Lenovo Yoga 3', 13000, 10),
-        (N'JBL 775 NC', 1200, 55),
-        (N'Powerbank 5000mah', 99.95, 500),
-        (N'Ear Plugs', 9.95, 550),
-        (N'Bunny Ears Headband', 149.50, 310);
-    END
-    GO
-    -- Renamed in release 1.2. Only the old name is changed, so a product that
-    -- was edited by hand is left alone. Old orders keep the name they were
-    -- placed with (OrderItems.ProductName).
-    UPDATE dbo.Products SET Name = N'Bunny Ears Headband'
-        WHERE Id = 6 AND Name = N'Cat Ears headband';
     GO
     -- Added in release 1.2. A separate step, so new databases and databases
     -- created by 1.1 go through the same code. Both columns are optional.
@@ -97,6 +81,79 @@ data:
         ALTER TABLE dbo.Products ADD Description NVARCHAR(500) NULL;
     IF COL_LENGTH('dbo.Products', 'ImageFile') IS NULL
         ALTER TABLE dbo.Products ADD ImageFile NVARCHAR(100) NULL;   -- file name only, e.g. ear-plugs.jpg
+    GO
+    -- Renamed in release 1.2: generic names instead of brand names. Only the
+    -- old name is changed, so a product that was renamed by hand is left alone.
+    -- Old orders keep the name they were placed with (OrderItems.ProductName).
+    UPDATE dbo.Products SET Name = N'Gaming Laptop 15'            WHERE Id = 1 AND Name = N'Asus TUF 15';
+    UPDATE dbo.Products SET Name = N'2-in-1 Laptop 13'            WHERE Id = 2 AND Name = N'Lenovo Yoga 3';
+    UPDATE dbo.Products SET Name = N'Noise-Cancelling Headphones' WHERE Id = 3 AND Name = N'JBL 775 NC';
+    UPDATE dbo.Products SET Name = N'Bunny Ears Headband'         WHERE Id = 6 AND Name = N'Cat Ears headband';
+    GO
+    -- The assortment (release 1.2: 20 products). Runs on every deploy:
+    --   * a product whose id is missing is added;
+    --   * a product without a description or image gets one;
+    --   * nothing else is changed, so stock and prices are never reset.
+    -- Images are served by frontend-service from static/products/ (see CREDITS.md).
+    DECLARE @Assortment TABLE (
+        Id INT PRIMARY KEY, Name NVARCHAR(50), Price DECIMAL(10,2), Stock INT,
+        Description NVARCHAR(500), ImageFile NVARCHAR(100));
+    INSERT INTO @Assortment (Id, Name, Price, Stock, Description, ImageFile)
+    VALUES
+    (1,  N'Gaming Laptop 15', 9999.95, 15,
+         N'15-inch gaming laptop with a fast screen, a dedicated graphics card and a backlit keyboard.', N'gaming-laptop-15.jpg'),
+    (2,  N'2-in-1 Laptop 13', 13000, 10,
+         N'13-inch laptop that turns into a tablet: detach the keyboard cover and use the touchscreen with the pen.', N'2-in-1-laptop-13.jpg'),
+    (3,  N'Noise-Cancelling Headphones', 1200, 55,
+         N'Over-ear headphones with active noise cancelling and a hard carrying case.', N'noise-cancelling-headphones.jpg'),
+    (4,  N'Powerbank 5000mah', 99.95, 500,
+         N'Compact 5000 mAh power bank that charges a phone about once. Fits in a pocket.', N'powerbank-5000mah.jpg'),
+    (5,  N'Ear Plugs', 9.95, 550,
+         N'Soft foam ear plugs for sleep, travel and noisy work.', N'ear-plugs.jpg'),
+    (6,  N'Bunny Ears Headband', 149.50, 310,
+         N'Fluffy bunny ears on a comfortable headband, for parties, costumes and photos.', N'bunny-ears-headband.jpg'),
+    (7,  N'Wireless Mouse', 24.95, 120,
+         N'Ergonomic wireless mouse with a USB receiver and quiet clicks.', N'wireless-mouse.jpg'),
+    (8,  N'Mechanical Keyboard', 89.00, 60,
+         N'Mechanical keyboard with tactile switches and colourful backlighting.', N'mechanical-keyboard.jpg'),
+    (9,  N'27-inch Monitor', 249.00, 25,
+         N'27-inch monitor with thin bezels, for work and entertainment.', N'27-inch-monitor.jpg'),
+    (10, N'Webcam 1080p', 59.95, 80,
+         N'Full HD webcam with a built-in microphone. Clips onto a laptop or monitor.', N'webcam-1080p.jpg'),
+    (11, N'USB-C Hub', 39.95, 150,
+         N'Compact USB-C hub that adds extra USB ports to your laptop.', N'usb-c-hub.jpg'),
+    (12, N'USB-C Cable 1m', 12.95, 300,
+         N'1-metre USB-C cable for charging and data transfer.', N'usb-c-cable-1m.jpg'),
+    (13, N'Laptop Backpack', 69.00, 45,
+         N'Anti-theft backpack with a padded compartment for laptops up to 15 inches.', N'laptop-backpack.jpg'),
+    (14, N'External SSD 1TB', 119.00, 40,
+         N'Portable 1 TB solid state drive with fast USB-C transfer, small enough for a pocket.', N'external-ssd-1tb.jpg'),
+    (15, N'Bluetooth Speaker', 79.95, 70,
+         N'Portable Bluetooth speaker with rich sound, for indoors and outdoors.', N'bluetooth-speaker.jpg'),
+    (16, N'Smartwatch', 199.00, 35,
+         N'Smartwatch with heart-rate monitoring, sleep tracking and phone notifications.', N'smartwatch.jpg'),
+    (17, N'Wireless Earbuds', 99.99, 90,
+         N'True wireless earbuds with a charging case and touch controls.', N'wireless-earbuds.jpg'),
+    (18, N'Gaming Headset', 100.00, 50,
+         N'Over-ear gaming headset with a microphone and soft ear cushions.', N'gaming-headset.jpg'),
+    (19, N'Phone Stand', 14.95, 200,
+         N'Wooden phone stand for your desk.', N'phone-stand.jpg'),
+    (20, N'HDMI Cable 2m', 9.99, 250,
+         N'2-metre HDMI cable for connecting a laptop or console to a monitor or TV.', N'hdmi-cable-2m.jpg');
+
+    SET IDENTITY_INSERT dbo.Products ON;
+    INSERT INTO dbo.Products (Id, Name, Price, Stock, Description, ImageFile)
+    SELECT a.Id, a.Name, a.Price, a.Stock, a.Description, a.ImageFile
+    FROM @Assortment a
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.Products p WHERE p.Id = a.Id);
+    SET IDENTITY_INSERT dbo.Products OFF;
+
+    UPDATE p
+    SET Description = COALESCE(NULLIF(p.Description, N''), a.Description),
+        ImageFile   = COALESCE(NULLIF(p.ImageFile, N''), a.ImageFile)
+    FROM dbo.Products p
+    JOIN @Assortment a ON a.Id = p.Id
+    WHERE NULLIF(p.Description, N'') IS NULL OR NULLIF(p.ImageFile, N'') IS NULL;
     GO
     IF USER_ID('product_svc') IS NULL CREATE USER product_svc FOR LOGIN product_svc;
     -- No INSERT/DELETE: the service only reads products and changes stock.
@@ -135,7 +192,7 @@ data:
 
         INSERT INTO dbo.Orders (UserId) VALUES (1);
         INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity)
-        VALUES (SCOPE_IDENTITY(), 2, N'Lenovo Yoga 3', 13000, 3);
+        VALUES (SCOPE_IDENTITY(), 2, N'2-in-1 Laptop 13', 13000, 3);
     END
     GO
     IF USER_ID('order_svc') IS NULL CREATE USER order_svc FOR LOGIN order_svc;
