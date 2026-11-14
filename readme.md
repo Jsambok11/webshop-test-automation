@@ -134,21 +134,22 @@ playwright install chromium
 
 ## Testing approach
 
-| Level | What it proves | Tool | Test cases (1.1) |
+| Level | What it proves | Tool | Test cases (1.2) |
 |---|---|---|---|
-| Unit | One service's logic in isolation; database and other services faked | pytest + Flask test client | 40 |
-| Integration | Real parts together: services, SQL Server, Kubernetes | pytest + requests, kubectl, sqlcmd | 41 |
-| E2E | Customer journeys in a real browser | pytest + Playwright | 21 |
-| Static | Review of code and configuration | by hand | 1 |
+| Unit | One service's logic in isolation; database and other services faked | pytest + Flask test client | 46 |
+| Integration | Real parts together: services, SQL Server, Kubernetes | pytest + requests, kubectl, sqlcmd | 44 |
+| E2E | Customer journeys in a real browser | pytest + Playwright | 26 |
+| Static | Review of code, configuration and image licences | by hand | 2 |
 
 - **Traceability.** Each release has its own workbook. The
   [1.1 workbook](docs/v1.1/test-management.xlsx) holds 41 requirements,
   103 test cases (one sheet per level), test results and a summary. The
-  [1.2 workbook](docs/v1.2/test-management.xlsx), in progress, adds 6
-  requirements and 15 test cases. Every automated test carries its test case
+  [1.2 workbook](docs/v1.2/test-management.xlsx) adds 6 requirements and
+  15 test cases (47 requirements, 118 test cases in total). Every automated test carries its test case
   ID, so results map straight back to requirements.
-- **Release 1.2** (in progress): free delivery from $100, product cards with
-  images, 20 products. See the [test plan](docs/v1.2/test-plan.pdf).
+- **Release 1.2:** free delivery from $100, product cards with images, a
+  placeholder for missing images, 20 products. See the
+  [test plan](docs/v1.2/test-plan.pdf).
 - **Test design techniques:** boundary value analysis, equivalence
   partitioning, decision tables, state transitions, concurrency and
   negative testing.
@@ -156,9 +157,12 @@ playwright install chromium
   submission, all-or-nothing orders across services, security (service token,
   CSRF, rate limiting, network isolation, database permissions, XSS) and
   resilience (database outage, restarts, redeploys).
-- **Latest result (release 1.1):** 208 of 208 automated tests passed, and the static review
-  passed: all 103 test cases Pass, covering all 41 requirements.
-- **Test report (release 1.1).** [test-report.pdf](docs/v1.1/test-report.pdf) closes the testing:
+- **Latest result (release 1.2):** 231 of 231 automated tests passed from an
+  empty cluster, and both static reviews passed: all 118 test cases Pass,
+  covering all 47 requirements. One Low defect in the test environment is
+  open ([#9](https://github.com/Jsambok11/webshop-test-automation/issues/9)).
+- **Test reports.** [Release 1.2](docs/v1.2/test-report.pdf) and
+  [release 1.1](docs/v1.1/test-report.pdf) close the testing of each release:
   scope, results, defects, deviations, remaining risks and a recommendation.
 
 Tests are written to be read. Each step is commented in Given / When / Then
@@ -228,7 +232,9 @@ flowchart LR
 │   └── v1.2/
 │       ├── test-plan.pdf          test plan (also as .docx)
 │       ├── test-plan.docx
-│       └── test-management.xlsx   requirements, test cases, results
+│       ├── test-management.xlsx   requirements, test cases, results
+│       ├── test-report.pdf        test report (also as .docx)
+│       └── test-report.docx
 ├── CREDITS.md                     sources and licences of the product images
 ├── deploy.py                      one-command deploy
 ├── cleanup.py                     remove everything from the cluster

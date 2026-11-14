@@ -22,7 +22,7 @@ spec:
       - name: frontend-service
         # Versioned tag instead of :latest. deploy.py replaces it with the exact build
         # tag (version + source hash), so the cluster always runs the code just built.
-        image: examination-frontend-service:1.1.0
+        image: examination-frontend-service:1.2.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
