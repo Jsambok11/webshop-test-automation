@@ -14,7 +14,7 @@ by the project's MIT licence.
 
 | Image | Original title and source | Author | Licence |
 |---|---|---|---|
-| gaming-laptop-15.jpg | [Schenker VIA14 Laptop asv2021-01](https://commons.wikimedia.org/wiki/File:Schenker_VIA14_Laptop_asv2021-01.jpg) | A.Savin | [Free Art License](https://artlibre.org/licence/lal/en/) |
+| gaming-laptop-15.jpg | [Schenker VIA14 Laptop asv2021-01](https://commons.wikimedia.org/wiki/File:Schenker_VIA14_Laptop_asv2021-01.jpg) | A.Savin, Wikipedia | [Free Art License](https://artlibre.org/licence/lal/en/) |
 | 2-in-1-laptop-13.jpg | [Notebook computer](https://commons.wikimedia.org/wiki/File:Notebook_computer.jpg) | KK IN HK | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 | noise-cancelling-headphones.jpg | [Bose QuietComfort 25 Acoustic Noise Cancelling Headphones with Carry Case](https://commons.wikimedia.org/wiki/File:Bose_QuietComfort_25_Acoustic_Noise_Cancelling_Headphones_with_Carry_Case.jpg) | Florian Fuchs | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
 | powerbank-5000mah.jpg | [SAMSUNG BATTERY PACK (POWER BANK) EB-PG850 (2)](https://commons.wikimedia.org/wiki/File:SAMSUNG_BATTERY_PACK_(POWER_BANK)_EB-PG850_(2).jpg) | Dinkun Chen | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |

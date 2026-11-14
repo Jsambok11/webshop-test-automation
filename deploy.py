@@ -71,7 +71,7 @@ def ensure_secret():
 
 
 def source_tag():
-    """Image tag derived from the service source code, e.g. "1.1.0-3f9a2c1d7e0b".
+    """Image tag derived from the service source code, e.g. "1.2.0-3f9a2c1d7e0b".
 
     Every code change gives a new tag, so Kubernetes always runs the code that
     was just built. (With a fixed tag the node keeps using its cached image.)
@@ -82,7 +82,7 @@ def source_tag():
         if path.is_file() and "__pycache__" not in path.parts:
             digest.update(path.relative_to(ROOT).as_posix().encode())
             digest.update(path.read_bytes())
-    return f"1.1.0-{digest.hexdigest()[:12]}"
+    return f"1.2.0-{digest.hexdigest()[:12]}"
 
 
 def apply_manifests(tag):
